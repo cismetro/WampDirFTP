@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial: WampServer com Diretório Personalizado e FTP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                    }
+                }
+            },
+            darkMode: 'class'
+        }
+
+        // Detectar preferência de esquema de cores
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // Função para rolar até a seção
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</head>
+<body class="bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
+    <header class="bg-primary text-white py-6 px-4 shadow-md">
+        <div class="container mx-auto">
+            <h1 class="text-3xl font-bold">Tutorial: Instalação WampServer com Diretório Personalizado e FTP</h1>
+            <p class="mt-2">Configuração do ambiente para "intranetsaude" com diretório personalizado</p>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8 flex flex-col md:flex-row">
+        <!-- Menu de navegação -->
+        <nav class="w-full md:w-1/4 mb-8 md:mb-0 md:mr-8">
+            <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg sticky top-4">
+                <h2 class="text-xl font-bold mb-4 text-primary">Conteúdo</h2>
+                <ul class="space-y-2">
+                    <li><button onclick="scrollToSection('introducao')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">Introdução</button></li>
+                    <li><button onclick="scrollToSection('requisitos')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">Requisitos</button></li>
+                    <li><button onclick="scrollToSection('wamp')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">1. Instalação do WampServer</button></li>
+                    <li><button onclick="scrollToSection('nssm')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">2. Configuração do NSSM</button></li>
+                    <li><button onclick="scrollToSection('diretorio')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">3. Redirecionamento do Diretório</button></li>
+                    <li><button onclick="scrollToSection('portas')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">4. Configuração de Portas</button></li>
+                    <li><button onclick="scrollToSection('ftp')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">5. Servidor FTP</button></li>
+                    <li><button onclick="scrollToSection('troubleshooting')" class="w-full text-left px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition">Resolução de Problemas</button></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Conteúdo principal -->
+        <main class="w-full md:w-3/4">
+            <section id="introducao" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">Introdução</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <p>Este tutorial vai guiá-lo pelos seguintes processos:</p>
+                    <ol class="list-decimal ml-6 mt-4 space-y-2">
+                        <li>Instalação do WampServer no drive C</li>
+                        <li>Configuração do NSSM para executar o WampServer como serviço do Windows</li>
+                        <li>Redirecionamento do diretório de arquivos da "intranetsaude" para o drive E</li>
+                        <li>Resolução de conflitos de porta e configuração de portas personalizadas</li>
+                        <li>Configuração de um servidor FTP para acesso remoto aos arquivos</li>
+                    </ol>
+                    <p class="mt-4">Ao final deste tutorial, você terá um ambiente de desenvolvimento web totalmente configurado com separação dos arquivos do aplicativo em um drive diferente do sistema.</p>
+                </div>
+            </section>
+
+            <section id="requisitos" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">Requisitos</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <p>Antes de começar, certifique-se de ter:</p>
+                    <ul class="list-disc ml-6 mt-4 space-y-2">
+                        <li>WampServer (baixe a versão mais recente em <a href="https://www.wampserver.com/en/" target="_blank" class="text-primary hover:underline">wampserver.com</a>)</li>
+                        <li>NSSM - Non-Sucking Service Manager (baixe em <a href="https://nssm.cc/download" target="_blank" class="text-primary hover:underline">nssm.cc/download</a>)</li>
+                        <li>FileZilla Server para Windows (baixe em <a href="https://filezilla-project.org/download.php?type=server" target="_blank" class="text-primary hover:underline">filezilla-project.org</a>)</li>
+                        <li>Permissões de administrador no Windows</li>
+                        <li>Drive E: disponível (ou outra partição conforme sua necessidade)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="wamp" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">1. Instalação do WampServer</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Baixe o instalador do WampServer</p>
+                            <p>Visite <a href="https://www.wampserver.com/en/" class="text-primary hover:underline" target="_blank">wampserver.com</a> e baixe a versão compatível com seu sistema (32 ou 64 bits).</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Instale os pré-requisitos</p>
+                            <p>Certifique-se de que as versões corretas do Visual C++ Redistributable estão instaladas. Normalmente, esses pacotes são instalados durante a instalação do WampServer, mas podem ser necessários separadamente caso o instalador apresente erros.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Execute o instalador do WampServer</p>
+                            <p>Clique com o botão direito no instalador e selecione "Executar como administrador".</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Selecione o local de instalação</p>
+                            <p>Quando solicitado, escolha o drive C como local de instalação (normalmente C:\wamp64 ou C:\wamp).</p>
+                            <div class="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg mt-2">
+                                <p class="font-semibold">Importante:</p>
+                                <p>Não se preocupe com o local de instalação neste momento, pois configuraremos posteriormente a localização dos arquivos do site.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Complete a instalação</p>
+                            <p>Siga as instruções do instalador e conclua a instalação padrão.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Verifique a instalação</p>
+                            <p>Inicie o WampServer pelo atalho criado na área de trabalho ou no menu iniciar. O ícone do WampServer deve aparecer na bandeja do sistema (canto inferior direito da tela) e ficar verde quando todos os serviços estiverem funcionando corretamente.</p>
+                        </li>
+                    </ol>
+                </div>
+            </section>
+
+            <section id="nssm" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">2. Configuração do NSSM (Non-Sucking Service Manager)</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <p class="mb-4">O NSSM permite executar o WampServer como um serviço do Windows, garantindo que ele inicie automaticamente com o sistema, mesmo sem login de usuário.</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Baixe e extraia o NSSM</p>
+                            <p>Baixe o NSSM em <a href="https://nssm.cc/download" class="text-primary hover:underline" target="_blank">nssm.cc/download</a> e extraia para uma pasta em seu computador (por exemplo, C:\tools\nssm).</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Abra o Prompt de Comando como Administrador</p>
+                            <p>Clique com o botão direito no menu Iniciar e selecione "Prompt de Comando (Admin)" ou "Windows PowerShell (Admin)".</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Navegue até a pasta do NSSM</p>
+                            <p>Digite o comando para navegar até a pasta onde extraiu o NSSM:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>cd C:\tools\nssm\win64</code>
+                            </div>
+                            <p class="mt-2">Ou se estiver usando a versão de 32 bits:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>cd C:\tools\nssm\win32</code>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Crie o serviço para o WampServer</p>
+                            <p>Execute o seguinte comando para criar um serviço para o WampServer:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>nssm install WampServer "C:\wamp64\wampmanager.exe"</code>
+                            </div>
+                            <p class="mt-2">Isso abrirá a interface gráfica do NSSM para configuração do serviço.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure as opções do serviço</p>
+                            <p>Na interface do NSSM, configure:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Na guia "Details":
+                                    <ul class="list-disc ml-6 mt-1">
+                                        <li>Display name: WampServer</li>
+                                        <li>Description: WampServer Service</li>
+                                        <li>Startup type: Automatic</li>
+                                    </ul>
+                                </li>
+                                <li>Na guia "Log on":
+                                    <ul class="list-disc ml-6 mt-1">
+                                        <li>Selecione "Local System account"</li>
+                                        <li>Marque "Allow service to interact with desktop"</li>
+                                    </ul>
+                                </li>
+                                <li>Na guia "I/O":
+                                    <ul class="list-disc ml-6 mt-1">
+                                        <li>Output (stdout): C:\wamp64\logs\wampserver_service.log</li>
+                                        <li>Error (stderr): C:\wamp64\logs\wampserver_service_error.log</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                            <p class="mt-2">Clique em "Install service" para criar o serviço.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Inicie o serviço</p>
+                            <p>Execute o comando:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>nssm start WampServer</code>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Verifique o status do serviço</p>
+                            <p>Execute o comando:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>nssm status WampServer</code>
+                            </div>
+                            <p class="mt-2">Deve retornar "SERVICE_RUNNING" se estiver funcionando corretamente.</p>
+                        </li>
+                    </ol>
+                    <div class="bg-green-100 dark:bg-green-900 p-4 rounded-lg mt-4">
+                        <p class="font-semibold">Dica:</p>
+                        <p>Você também pode gerenciar o serviço através do Gerenciador de Serviços do Windows. Pressione Win+R, digite "services.msc" e procure por "WampServer".</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="diretorio" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">3. Redirecionamento do Diretório para o Drive E</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <p class="mb-4">Agora vamos configurar o Apache para servir os arquivos da "intranetsaude" a partir do drive E, mantendo a instalação do WampServer no drive C.</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Crie a pasta para a "intranetsaude" no drive E</p>
+                            <p>Abra o Explorador de Arquivos e crie a estrutura de pastas:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>E:\intranetsaude\</code>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Localize o arquivo de configuração do Apache</p>
+                            <p>Abra o arquivo de configuração Virtual Hosts do Apache:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>C:\wamp64\bin\apache\apache[versão]\conf\extra\httpd-vhosts.conf</code>
+                            </div>
+                            <p class="mt-2">Substitua [versão] pela versão do Apache instalada, por exemplo apache2.4.54.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Crie um Virtual Host para a "intranetsaude"</p>
+                            <p>Adicione o seguinte código no final do arquivo httpd-vhosts.conf:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <pre><code>&lt;VirtualHost *:80&gt;
+    ServerName intranetsaude.local
+    DocumentRoot "E:/intranetsaude"
+    &lt;Directory "E:/intranetsaude"&gt;
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    &lt;/Directory&gt;
+    ErrorLog "logs/intranetsaude-error.log"
+    CustomLog "logs/intranetsaude-access.log" common
+&lt;/VirtualHost&gt;</code></pre>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Verifique se o módulo vhosts está ativado</p>
+                            <p>Certifique-se de que a seguinte linha não esteja comentada no arquivo httpd.conf principal:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>Include conf/extra/httpd-vhosts.conf</code>
+                            </div>
+                            <p class="mt-2">O arquivo httpd.conf está localizado em:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>C:\wamp64\bin\apache\apache[versão]\conf\httpd.conf</code>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Adicione o nome do host ao arquivo hosts</p>
+                            <p>Abra o Bloco de Notas como administrador e abra o arquivo:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>C:\Windows\System32\drivers\etc\hosts</code>
+                            </div>
+                            <p class="mt-2">Adicione a seguinte linha no final do arquivo:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>127.0.0.1 intranetsaude.local</code>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Reinicie o WampServer</p>
+                            <p>Reinicie o serviço do WampServer usando um dos métodos:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Clique no ícone do WampServer na bandeja e selecione "Reiniciar todos os serviços"</li>
+                                <li>Ou execute o comando: <code>nssm restart WampServer</code></li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Teste a configuração</p>
+                            <p>Abra seu navegador e acesse:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>http://intranetsaude.local</code>
+                            </div>
+                            <p class="mt-2">Você deve ver o conteúdo da pasta E:\intranetsaude (ou uma página de índice se houver um arquivo index.html/index.php).</p>
+                        </li>
+                    </ol>
+                    <h3 class="text-xl font-semibold mt-6 mb-4">3.8. Acesso à Intranet de outros PCs na rede</h3>
+                    <p class="mb-4">Para que outros computadores na rede possam acessar sua "intranetsaude", você tem duas opções:</p>
+                    
+                    <h4 class="text-lg font-semibold mt-4 mb-2">Opção 1: Configuração do arquivo hosts em cada computador</h4>
+                    <ol class="list-decimal ml-6 space-y-3">
+                        <li>
+                            <p class="font-semibold">Descubra o IP do servidor</p>
+                            <p>No computador onde o WampServer está instalado, abra o prompt de comando e digite:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>ipconfig</code>
+                            </div>
+                            <p class="mt-2">Anote o IPv4 Address da interface de rede que está conectada à sua rede local (por exemplo, 192.168.1.10).</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure o arquivo hosts em cada computador cliente</p>
+                            <p>Em cada computador que precisa acessar a intranet:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Abra o Bloco de Notas como administrador</li>
+                                <li>Abra o arquivo C:\Windows\System32\drivers\etc\hosts</li>
+                                <li>Adicione a linha (substituindo 192.168.1.10 pelo IP real do seu servidor):</li>
+                            </ul>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>192.168.1.10 intranetsaude.local</code>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Teste o acesso</p>
+                            <p>Em cada computador cliente, abra o navegador e acesse:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>http://intranetsaude.local</code>
+                            </div>
+                        </li>
+                    </ol>
+                    
+                    <h4 class="text-lg font-semibold mt-6 mb-2">Opção 2: Configuração de DNS local (recomendado para redes maiores)</h4>
+                    <ol class="list-decimal ml-6 space-y-3">
+                        <li>
+                            <p class="font-semibold">Configure um servidor DNS na rede</p>
+                            <p>Se você já tem um servidor DNS (como um Windows Server com Active Directory), adicione uma nova zona de pesquisa:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>No Gerenciador DNS, clique com o botão direito em "Zonas de Pesquisa Direta" e selecione "Nova Zona"</li>
+                                <li>Crie uma zona primária para "intranetsaude.local"</li>
+                                <li>Adicione um novo registro de host (A) apontando para o IP do servidor WampServer</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure os clientes para usar o servidor DNS</p>
+                            <p>Certifique-se de que todos os computadores na rede estão configurados para usar seu servidor DNS nas configurações de TCP/IP.</p>
+                        </li>
+                    </ol>
+                    
+                    <h4 class="text-lg font-semibold mt-6 mb-2">Alternativa: Acesso direto por IP</h4>
+                    <p class="mb-4">Se você não precisa usar um nome de domínio, os usuários podem acessar diretamente pelo IP do servidor:</p>
+                    <ol class="list-decimal ml-6 space-y-3">
+                        <li>
+                            <p class="font-semibold">Configure um VirtualHost baseado em IP</p>
+                            <p>Modifique o arquivo httpd-vhosts.conf para usar o IP do servidor em vez de um nome:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <pre><code>&lt;VirtualHost *:80&gt;
+    # Sem ServerName
+    DocumentRoot "E:/intranetsaude"
+    &lt;Directory "E:/intranetsaude"&gt;
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    &lt;/Directory&gt;
+&lt;/VirtualHost&gt;</code></pre>
+                            </div>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Acesso pelo navegador</p>
+                            <p>Os usuários podem acessar simplesmente usando o IP do servidor no navegador:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>http://192.168.1.10</code>
+                            </div>
+                            <p class="mt-2">(Substituindo pelo IP real do seu servidor)</p>
+                        </li>
+                    </ol>
+                    
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg mt-6">
+                        <p class="font-semibold">Importante:</p>
+                        <p>Se seu servidor tiver um IP dinâmico (DHCP), considere configurar um IP estático para evitar que o endereço mude após reinicializações.</p>
+                    </div>
+                
+                </div>
+            </section>
+
+            <section id="portas" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">4. Configuração de Portas e Resolução de Conflitos</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <p class="mb-4">Se você estiver enfrentando conflitos de porta (especialmente com o IIS ou outros servidores web), siga estas etapas para configurar portas alternativas:</p>
+                    
+                    <h3 class="text-xl font-semibold mb-4">4.1. Detectar conflitos de porta</h3>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Verifique se há conflitos na porta 80</p>
+                            <p>Se o WampServer não iniciar ou o ícone ficar laranja/vermelho, provavelmente há um conflito de porta. Para verificar qual serviço está usando a porta 80:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>netstat -aon | findstr :80</code>
+                            </div>
+                            <p class="mt-2">O comando acima retornará o PID (ID do processo) que está usando a porta 80.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Identifique o serviço pelo PID</p>
+                            <p>Use o comando abaixo substituindo [PID] pelo número obtido no passo anterior:</p>
+                            <div class="bg-gray-200 dark:bg-gray-700 p-2 rounded mt-2 overflow-x-auto">
+                                <code>tasklist /fi "PID eq [PID]"</code>
+                            </div>
+                            <p class="mt-2">Este comando mostrará qual programa está usando a porta 80. Geralmente será o IIS (w3svc) ou outro servidor web.</p>
+                        </li>
+                    </ol>
+
+                    <h3 class="text-xl font-semibold mt-6 mb-4">4.2. Opção recomendada: Configurar o IIS para usar porta diferente</h3>
+                    <p class="mb-4">Para manter o Apache do WampServer na porta 80 (padrão) e alterar a porta do IIS:</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Abra o Gerenciador do IIS</p>
+                            <p>Pressione Win+R, digite "inetmgr" e pressione Enter.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Altere a porta do site padrão</p>
+                            <p>No painel esquerdo, expanda seu servidor e selecione "Sites".</p>
+                            <p>Clique com o botão direito em "Default Web Site" e selecione "Editar associações...".</p>
+                            <p>Selecione a associação com a porta 80 e clique em "Editar...".</p>
+                            <p>Altere a porta para 8081 ou outra porta não utilizada.</p>
+                            <p>Clique em "OK" para salvar as alterações.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Reinicie o serviço do IIS</p>
+                            <p>No painel direito do Gerenciador do IIS, clique em "Reiniciar" ou reinicie o serviço pelo services.msc.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Inicie o WampServer</p>
+                            <p>Use o comando: <code>nssm start WampServer</code></p>
+                            <p>Agora o Apache deve iniciar normalmente na porta 80, já que o IIS está usando outra porta.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Teste o acesso</p>
+                            <p>Acesse seu site WampServer: <code>http://intranetsaude.local</code></p>
+                            <p>Acesse seu site IIS: <code>http://localhost:8081</code></p>
+                        </li>
+                    </ol>
+                    <div class="bg-green-100 dark:bg-green-900 p-4 rounded-lg mt-4">
+                        <p class="font-semibold">Importante:</p>
+                        <p>Esta é a opção recomendada porque mantém o Apache funcionando na porta padrão 80, o que torna mais fácil acessar seus sites sem especificar a porta na URL.</p>
+                    </div>
+
+                    <h3 class="text-xl font-semibold mt-6 mb-4">4.3. Opção alternativa 1: Desativar o IIS ou outro servidor web</h3>
+                    <p class="mb-4">Se você não precisar do IIS, pode simplesmente desativá-lo:</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Desative o serviço do IIS</p>
+                            <p>Pressione Win+R, digite "services.msc" e pressione Enter.</p>
+                            <p>Procure pelo serviço "World Wide Web Publishing Service" (ou "Serviço de Publicação World Wide Web").</p>
+                            <p>Clique com o botão direito e selecione "Parar".</p>
+                            <p>Em seguida, clique com o botão direito novamente e selecione "Propriedades".</p>
+                            <p>Em "Tipo de inicialização", selecione "Manual" ou "Desativado".</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Reinicie o WampServer</p>
+                            <p>Use o comando: <code>nssm restart WampServer</code></p>
+                        </li>
+                    </ol>
+
+                    <h3 class="text-xl font-semibold mt-6 mb-4">4.4. Opção alternativa 2: Alterar a porta do Apache no WampServer</h3>
+                    <p class="mb-4">Alternativamente, você pode configurar o IIS para usar uma porta diferente:</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Abra o Gerenciador do IIS</p>
+                            <p>Pressione Win+R, digite "inetmgr" e pressione Enter.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Altere a porta do site padrão</p>
+                            <p>No painel esquerdo, expanda seu servidor e selecione "Sites".</p>
+                            <p>Clique com o botão direito em "Default Web Site" e selecione "Editar associações...".</p>
+                            <p>Selecione a associação com a porta 80 e clique em "Editar...".</p>
+                            <p>Altere a porta para 8081 ou outra porta não utilizada.</p>
+                            <p>Clique em "OK" para salvar as alterações.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Reinicie o serviço do IIS</p>
+                            <p>No painel direito do Gerenciador do IIS, clique em "Reiniciar" ou reinicie o serviço pelo services.msc.</p>
+                        </li>
+                    </ol>
+
+                    <h3 class="text-xl font-semibold mt-6 mb-4">4.5. Configuração de redirecionamento de porta (opcional)</h3>
+                    <p class="mb-4">Se você mudou a porta do Apache mas ainda deseja acessar o site usando a URL sem especificar a porta:</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Instale o módulo URL Rewrite do IIS</p>
+                            <p>Baixe e instale o módulo URL Rewrite do IIS da Microsoft.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure o redirecionamento</p>
+                            <p>Crie um site no IIS que escuta na porta 80 e configure uma regra de redirecionamento para encaminhar as solicitações para a porta 8080.</p>
+                        </li>
+                    </ol>
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg mt-4">
+                        <p class="font-semibold">Nota:</p>
+                        <p>Esta solução é mais avançada e requer conhecimentos adicionais de IIS. Para a maioria dos casos, é mais simples usar uma das opções anteriores.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="ftp" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">5. Configuração do Servidor FTP</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <p class="mb-4">O servidor FTP permitirá transferir arquivos para a pasta E:\intranetsaude de forma remota.</p>
+                    <ol class="list-decimal ml-6 space-y-4">
+                        <li>
+                            <p class="font-semibold">Baixe e instale o FileZilla Server</p>
+                            <p>Baixe em <a href="https://filezilla-project.org/download.php?type=server" class="text-primary hover:underline" target="_blank">filezilla-project.org</a> e execute o instalador.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure as opções de instalação</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Escolha instalar FileZilla Server como serviço (recomendado)</li>
+                                <li>Mantenha a porta padrão de administração (14147)</li>
+                                <li>Defina uma senha de administrador</li>
+                                <li>Selecione iniciar automaticamente com o Windows</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Abra o FileZilla Server Interface</p>
+                            <p>Após a instalação, abra o FileZilla Server Interface pelo menu Iniciar.</p>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Conecte-se ao servidor local</p>
+                            <p>Na caixa de diálogo de conexão, use:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Host: localhost</li>
+                                <li>Port: 14147 (ou a porta que você configurou)</li>
+                                <li>Password: a senha que você definiu durante a instalação</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Adicione um usuário para acesso FTP</p>
+                            <p>Vá para Edit > Users e siga os passos:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Clique em "Add" e digite um nome de usuário (ex: ftpuser)</li>
+                                <li>Marque "Password" e defina uma senha segura</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure o diretório compartilhado</p>
+                            <p>Com o usuário selecionado:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Vá para a aba "Shared folders"</li>
+                                <li>Clique em "Add" e navegue até E:\intranetsaude</li>
+                                <li>Selecione a pasta e clique em OK</li>
+                                <li>Marque todas as permissões necessárias:
+                                    <ul class="list-disc ml-6 mt-1">
+                                        <li>Read (Leitura)</li>
+                                        <li>Write (Escrita)</li>
+                                        <li>Delete (Exclusão)</li>
+                                        <li>Append (Anexar)</li>
+                                        <li>Create directory (Criar diretório)</li>
+                                        <li>Delete directory (Excluir diretório)</li>
+                                        <li>List directory (Listar diretório)</li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure as opções do Passive Mode</p>
+                            <p>Vá para Edit > Settings > Passive mode settings:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Marque "Use custom port range"</li>
+                                <li>Defina um intervalo de portas, por exemplo: 50000-51000</li>
+                                <li>Se o servidor estiver atrás de um firewall ou roteador, configure o IP público em "Use the following IP" ou marque "Retrieve external IP address from"</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Configure o Firewall do Windows</p>
+                            <p>Abra o Painel de Controle > Sistema e Segurança > Firewall do Windows > Configurações Avançadas e crie regras para:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Porta 21 (FTP)</li>
+                                <li>Intervalo de portas passivas que você configurou (ex: 50000-51000)</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <p class="font-semibold">Teste a conexão FTP</p>
+                            <p>Use um cliente FTP como FileZilla Client ou o Explorador de Arquivos do Windows:</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Endereço: ftp://seu_ip_ou_localhost</li>
+                                <li>Usuário: o usuário que você criou</li>
+                                <li>Senha: a senha que você definiu</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <div class="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg mt-4">
+                        <p class="font-semibold">Dica de segurança:</p>
+                        <p>Para maior segurança, considere configurar o FTP para usar SSL/TLS (FTPS). Isso pode ser feito nas configurações do FileZilla Server em Edit > Settings > FTP over TLS settings.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section id="troubleshooting" class="mb-10">
+                <h2 class="text-2xl font-bold text-primary mb-4">Resolução de Problemas</h2>
+                <div class="bg-gray-100 dark:bg-gray-800 p-6 rounded-lg">
+                    <h3 class="text-xl font-semibold mb-4">Problemas comuns e soluções</h3>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <p class="font-semibold">Apache não inicia</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Verifique se a porta 80 não está sendo usada por outro serviço (como IIS ou Skype)</li>
+                                <li>Verifique os logs de erro em C:\wamp64\logs</li>
+                                <li>Certifique-se de que os caminhos nos arquivos de configuração usam barras "/" em vez de "\"</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <p class="font-semibold">Não é possível acessar o site pelo navegador</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Verifique se o Apache está rodando (ícone verde no WampServer)</li>
+                                <li>Verifique se o arquivo hosts foi editado corretamente</li>
+                                <li>Tente acessar usando http://localhost ou http://127.0.0.1 para testar se o servidor web está funcionando</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <p class="font-semibold">Problemas de permissão no diretório E:\intranetsaude</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Certifique-se de que o usuário que executa o Apache (normalmente SYSTEM quando configurado como serviço) tem permissões de leitura e escrita para E:\intranetsaude</li>
+                                <li>Clique com o botão direito na pasta > Propriedades > Segurança > Editar > Adicionar > Digite "SYSTEM" > Verificar nomes > OK, e conceda permissões totais</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <p class="font-semibold">FTP não conecta</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Verifique se o serviço FileZilla Server está em execução</li>
+                                <li>Verifique se o firewall não está bloqueando as portas FTP (21 e portas passivas)</li>
+                                <li>Tente conectar localmente primeiro (localhost) para isolar problemas de rede</li>
+                            </ul>
+                        </div>
+                        
+                        <div>
+                            <p class="font-semibold">O serviço WampServer não inicia automaticamente</p>
+                            <ul class="list-disc ml-6 mt-2 space-y-2">
+                                <li>Verifique o tipo de inicialização no Gerenciador de Serviços (services.msc)</li>
+                                <li>Verifique os logs do serviço em C:\wamp64\logs</li>
+                                <li>Tente reiniciar o serviço manualmente: <code>nssm restart WampServer</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="bg-primary text-white p-6 rounded-lg mt-8">
+                <h2 class="text-xl font-bold mb-4">Configuração Concluída!</h2>
+                <p>Agora você tem:</p>
+                <ul class="list-disc ml-6 mt-2 space-y-1">
+                    <li>WampServer instalado no drive C, executando como um serviço do Windows</li>
+                    <li>A pasta da "intranetsaude" configurada no drive E</li>
+                    <li>O Apache configurado para servir o site a partir do drive E</li>
+                    <li>Configuração adequada de portas para lidar com conflitos</li>
+                    <li>Um servidor FTP para acesso remoto aos arquivos</li>
+                </ul>
+                <p class="mt-4">Você pode começar a adicionar seus arquivos da "intranetsaude" na pasta E:\intranetsaude e acessá-los através de http://intranetsaude.local no navegador.</p>
+            </div>
+        </main>
+    </div>
+
+    <footer class="bg-gray-100 dark:bg-gray-800 py-6 px-4 mt-10">
+        <div class="container mx-auto text-center">
+            <p>Tutorial: Instalação WampServer com Diretório Personalizado e FTP</p>
+            <p class="mt-2 text-sm">© 2023 Intranet Saúde. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+</body>
+</html>
